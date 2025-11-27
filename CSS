@@ -1,0 +1,61 @@
+import express from "express";
+import pkg from 'pg';
+const { Pool } = pkg;
+
+const app = express();
+app.use(express.json());
+
+const db = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
+
+// Utility: generate random code
+function makeCode(len = 6) {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  return [...Array(len)].map(() => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+
+app.post("/api/shorten", async (req, res) => {
+  const { url } = req.body;
+  const code = makeCode();
+
+  await db.query(
+    "INSERT INTO links (short_code, original_url) VALUES ($1, $2)",
+    [code, url]
+  );
+
+  res.json({ shortUrl: `${process.env.BASE_URL}/${code}` });
+});
+
+app.get("/:code", async (req, res) => {
+  const { code } = req.params;
+
+  const result = await db.query(
+    "SELECT original_url FROM links WHERE short_code = $1",
+    [code]
+  );
+
+  if (result.rowCount === 0) return res.sendStatus(404);
+
+  await db.query(
+    "UPDATE links SET click_count = click_count + 1 WHERE short_code = $1",
+    [code]
+  );
+
+  res.redirect(result.rows[0].original_url);
+});
+
+app.get("/api/stats/:code", async (req, res) => {
+  const { code } = req.params;
+
+  const result = await db.query(
+    "SELECT * FROM links WHERE short_code = $1",
+    [code]
+  );
+
+  if (result.rowCount === 0) return res.sendStatus(404);
+
+  res.json(result.rows[0]);
+});
+
+app.listen(3000, () => console.log("Server running"));
