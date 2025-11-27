@@ -1,0 +1,22 @@
+<form id="form">
+  <input id="url" type="text" placeholder="Paste link..." class="border p-2 w-full" />
+  <button class="bg-blue-500 text-white px-4 py-2 mt-3">Shorten</button>
+</form>
+
+<div id="result"></div>
+
+<script>
+  document.getElementById("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const url = document.getElementById("url").value;
+
+    const res = await fetch("/api/shorten", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url })
+    });
+
+    const data = await res.json();
+    document.getElementById("result").innerText = data.shortUrl;
+  });
+</script>
